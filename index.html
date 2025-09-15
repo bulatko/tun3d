@@ -40,6 +40,15 @@
       .btn-arxiv:hover { background: #961515; border-color: #961515; }
       .btn-hf { background: #ed9d1b; color: #fff; border-color: #ff9d00; }
       .btn-hf:hover { background: #f48e00; border-color: #e88900; }
+    @media (orientation: portrait) {
+      .paper, .grid, .video { width: 92vw; }
+      .section-title, .nav, .cta { width: 92vw; }
+      .grid { grid-template-columns: 1fr; }
+      .video video { max-height: 32vh; }
+      .paper .diagram img { width: 100%; }
+      .paper .diagram .caption { width: 100%; font-size: 18px; }
+      .cta { grid-auto-flow: row; justify-content: center; justify-items: center; }
+    }
     </style>
     <script type="importmap">
       {
@@ -130,7 +139,7 @@
     <script type="module">
       import { createPLYViewer, loadAnnotationsFromJson, loadPosesFromTxt } from './src/PLYModelViewer.js';
 
-      const possibleSceneIds = ['scene0356_02', 'scene0356_01'];
+      const possibleSceneIds = ['scene0356_02', 'scene0338_00', 'scene0146_02'];
       const sceneIdContainer = document.getElementById('scene_id_container');
       const grid = document.getElementById('grid1');
       const videoWrap = document.getElementById('videoWrap');
@@ -212,9 +221,13 @@
                 const annotations = [...bboxes, ...layout];
                 const wrapper = await createPLYViewer(model, annotations, { ...options }, groupId, name);
                 viewerDiv.appendChild(wrapper);
+                if (wrapper.__viewer) {
+                  wrapper.__viewer.setSyncWithVideoEnabled(true, true);
+                }
                 // attach video sync if poses/video available
                 if (currentVideo && currentPoses && wrapper.__viewer) {
                   wrapper.__viewer.attachVideoSync(currentVideo, currentPoses);
+                  wrapper.__viewer.setSyncWithVideoEnabled(true, true);
                 }
             })();
         }
