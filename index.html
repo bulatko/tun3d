@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TUN3D Demo</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #eeeeee; color: #333; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, 'Noto Sans', sans-serif; }
+      .wrap { width: 100%; margin: 0 auto; padding: 16px; display: grid; gap: 12px; }
+      .paper { width: 80vw; margin: 0 auto; display: grid; gap: 12px; align-items: start; }
+      .paper .abstract { background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 12px 16px; line-height: 1.5; font-size: 20px; }
+      .paper .diagram { display: grid; place-items: center; }
+      .paper .diagram img { width: 90%; margin-bottom: 8px; }
+      .paper .diagram .caption { width: 90%; font-size: 14px; color: #444; line-height: 1.5; text-align: left; }
+      .video { width: 75vw; margin: 0 auto; display: grid; place-items: center; }
+      .video video { width: 100%; height: auto; max-height: 45vh; border-radius: 8px; }
+      .grid { width: 80vw; margin: 0 auto; display: grid; grid-template-columns: repeat(var(--cols, 3), 1fr); gap: 12px; justify-items: stretch; align-items: stretch; }
+      .viewer { width: 100%; height: auto; aspect-ratio: 4 / 3; }
+      .legend { font-size: 13px; opacity: 0.85; }
+      a { color: #7cc4ff; }
+      .title { text-align: center; }
+      .scene_id { text-align: center; }
+      .scene_id_container {margin: auto; display: grid; width: auto; grid-auto-flow: column; gap: 8px; align-items: center; justify-content: center; }
+      .scene_button { padding: 6px 10px; border-radius: 6px; border: 1px solid #bbb; background: #fff; color: #333; cursor: pointer; max-width: 20vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .scene_button[aria-pressed="true"] { background: #2563eb; color: #fff; border-color: #2563eb; }
+      .nav { width: 80vw; margin: 8px auto 16px; display: grid; grid-auto-flow: column; gap: 16px; justify-content: start; align-items: center; }
+      .nav a { text-decoration: none; color: #2563eb; font-weight: 600; }
+      .nav a:hover { text-decoration: underline; }
+      .section-title { margin: 8px auto; width: 80vw; font-size: 22px; font-weight: 700; }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.164.1/build/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <h1 class="title">TUN3D: Towards Real-World Scene Understanding from Unposed Images</h1>
+    <nav class="nav">
+      <a href="#demo">Demo</a>
+      <a href="#abstract">Abstract</a>
+      <a href="#method">Method</a>
+    </nav>
+    <h2 class="section-title" id="demo">Demo</h2>
+    <div class="scene_id_container" id="scene_id_container"></div>
+    <div class="wrap">
+        <h3 class="scene_id" id="scene_id"></h3>
+        <div class="grid" id="grid1"></div>
+        <div class="video" id="videoWrap"></div>
+    </div>
+    <h2 class="section-title" id="abstract">Abstract</h2>
+    <div class="paper">
+      <div class="abstract">
+        Layout estimation and 3D object detection are
+        two fundamental tasks in indoor scene understanding. When
+        combined, they enable the creation of a compact yet semanti-
+        cally rich spatial representation of a scene. Existing approaches
+        typically rely on point cloud input, which poses a major
+        limitation since most consumer cameras lack depth sensors
+        and visual-only data remains far more common. We address
+        this issue with TUN3D, the first method that tackles joint
+        layout estimation and 3D object detection in real scans, given
+        multi-view images as input, and does not require ground-
+        truth camera poses or depth supervision. Our approach builds
+        on a lightweight sparse-convolutional backbone and employs
+        two dedicated heads: one for 3D object detection and one for
+        layout estimation, leveraging a novel and effective parametric
+        wall representation. Extensive experiments show that TUN3D
+        achieves state-of-the-art performance across three challenging
+        scene understanding benchmarks: (i) using ground-truth point
+        clouds, (ii) using posed images, and (iii) using unposed images.
+        While performing on par with specialized 3D object detection
+        methods, TUN3D significantly advances layout estimation, set-
+        ting a new benchmark in holistic indoor scene understanding.
+      </div>
+      <h2 class="section-title" id="method">Method</h2>
+      <div class="diagram">
+        <img src="assets/img/scheme.png" alt="Method diagram" />
+        <div class="caption">
+          (A) TUN3D can flexibly process various inputs: unposed images, posed images, and point clouds. (B) TUN3D model is constructed of a 3D sparse-convolutional backbone and neck, followed by two task-specific heads. (C) The novel layout head predicts wall scores and regresses wall parameters for each wall comprising the layout. (D) The detection head outputs object class scores and coordinates of a 3D bounding box of an object.
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { createPLYViewer, loadAnnotationsFromJson, loadPosesFromTxt } from './src/PLYModelViewer.js';
+
+      const possibleSceneIds = ['scene0356_02', 'scene0356_01'];
+      const sceneIdContainer = document.getElementById('scene_id_container');
+      const grid = document.getElementById('grid1');
+      const videoWrap = document.getElementById('videoWrap');
+
+      let sceneId = possibleSceneIds[0];
+      let currentVideo = null;
+      let currentPoses = null;
+
+      function setActiveButton(value) {
+        for (const btn of sceneIdContainer.querySelectorAll('button.scene_button')) {
+          const pressed = btn.value === value;
+          btn.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+        }
+      }
+
+      function loadVideo(container, sceneId) {
+        if (!container) return;
+        const video = document.createElement('video');
+        video.src = `data/${sceneId}/video.mp4`;
+        video.controls = true;
+        video.playsInline = true;
+        video.muted = true; // allow autoplay
+        video.autoplay = true;
+        video.loop = true;
+        video.preload = 'auto';
+        container.innerHTML = '';
+        container.appendChild(video);
+        currentVideo = video;
+        const tryPlay = () => {
+          const p = video.play();
+          if (p && typeof p.then === 'function') {
+            p.catch(() => { video.muted = true; video.play().catch(() => {}); });
+          }
+        };
+        if (document.visibilityState === 'visible') tryPlay();
+        else document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') tryPlay(); }, { once: true });
+      }
+
+      function disposeGrid(container) {
+        if (!container) return;
+        for (const child of Array.from(container.children)) {
+          const wrapper = child.firstElementChild;
+          const viewer = wrapper && wrapper.__viewer;
+          if (viewer && typeof viewer.dispose === 'function') viewer.dispose();
+        }
+        container.innerHTML = '';
+      }
+
+      async function makeGrid(container, sceneId) {
+        if (!container) return;
+        let types = {
+            'Depth based': {pcd: 'scene_gt', bboxes: 'bboxes_pred_gt_pcd', layout: 'bboxes_layout_pred_gt_pcd'},
+            'Posed RGB': {pcd: 'scene_posed', bboxes: 'bboxes_posed_pred', layout: 'bboxes_layout_posed_pred'},
+            'Unposed RGB': {pcd: 'scene_unposed', bboxes: 'bboxes_unposed_pred', layout: 'bboxes_layout_unposed_pred'},
+            'Ground Truth': {pcd: 'scene_gt', bboxes: 'bboxes_gt', layout: 'bboxes_layout_gt'}
+        }
+        const groupId = `demo-group-${sceneId}`;
+        const options = { width: '100%', height: '100%', showAnnotations: true };
+        const names = Object.keys(types);
+        container.style.setProperty('--cols', String(names.length));
+
+        // Load poses for this scene once
+        try {
+          currentPoses = await loadPosesFromTxt(`data/${sceneId}/poses.txt`);
+        } catch (e) {
+          currentPoses = null;
+          console.warn('Poses not loaded:', e.message);
+        }
+
+        for (const name of names) {
+            const viewerDiv = document.createElement('div');
+            viewerDiv.className = 'viewer';
+            container.appendChild(viewerDiv); // keep order stable
+            (async () => {
+                const model = `data/${sceneId}/${types[name].pcd}.ply`;
+                const bboxes = await loadAnnotationsFromJson(`data/${sceneId}/${sceneId}_${types[name].bboxes}.json`);
+                let layout = await loadAnnotationsFromJson(`data/${sceneId}/${sceneId}_${types[name].layout}.json`);
+                layout = layout.map(item => [item[0], item[1], item[2], item[3], item[4], item[5], 18]);
+                const annotations = [...bboxes, ...layout];
+                const wrapper = await createPLYViewer(model, annotations, { ...options }, groupId, name);
+                viewerDiv.appendChild(wrapper);
+                // attach video sync if poses/video available
+                if (currentVideo && currentPoses && wrapper.__viewer) {
+                  wrapper.__viewer.attachVideoSync(currentVideo, currentPoses);
+                }
+            })();
+        }
+      }
+
+      function selectScene(newSceneId) {
+        if (sceneId === newSceneId) return;
+        sceneId = newSceneId;
+        document.getElementById('scene_id').textContent = sceneId;
+        setActiveButton(sceneId);
+        disposeGrid(grid);
+        loadVideo(videoWrap, sceneId);
+        makeGrid(grid, sceneId);
+      }
+
+      // initial render
+      for (let id of possibleSceneIds) {
+        const button = document.createElement('button');
+        button.className = 'scene_button';
+        button.value = id;
+        button.textContent = id;
+        button.setAttribute('aria-pressed', id === sceneId ? 'true' : 'false');
+        button.addEventListener('click', () => selectScene(id));
+        sceneIdContainer.appendChild(button);
+      }
+      setActiveButton(sceneId);
+      document.getElementById('scene_id').textContent = sceneId;
+      loadVideo(videoWrap, sceneId);
+      makeGrid(grid, sceneId);
+    </script>
+  </body>
+</html> 
