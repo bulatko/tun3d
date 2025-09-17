@@ -123,6 +123,11 @@ export class PLYModelViewer {
     this.controls.maxDistance = Infinity;
     this._onControlsChange = () => this._handleControlsChange();
     this.controls.addEventListener('change', this._onControlsChange);
+    // Disable video sync when user starts interacting with the camera
+    this._onControlsStart = () => this._handleUserInteractionStart();
+    this._onControlsEnd = () => this._handleUserInteractionEnd();
+    this.controls.addEventListener('start', this._onControlsStart);
+    this.controls.addEventListener('end', this._onControlsEnd);
 
     const hemi = new THREE.HemisphereLight(0xffffff, 0x222233, 0.8);
     this.scene.add(hemi);
@@ -519,6 +524,8 @@ export class PLYModelViewer {
   dispose() {
     this.renderer?.setAnimationLoop(null);
     if (this.controls && this._onControlsChange) this.controls.removeEventListener('change', this._onControlsChange);
+    if (this.controls && this._onControlsStart) this.controls.removeEventListener('start', this._onControlsStart);
+    if (this.controls && this._onControlsEnd) this.controls.removeEventListener('end', this._onControlsEnd);
     this.controls?.dispose();
     this.resizeObserver?.disconnect();
     if (this._handleResizeBound) window.removeEventListener('resize', this._handleResizeBound);
@@ -643,6 +650,17 @@ export class PLYModelViewer {
 
   _handleControlsChange() {
     this._broadcastCameraPose();
+  }
+
+  _handleUserInteractionStart() {
+    // If user starts interacting, disable sync with video and uncheck checkbox
+    if (this.videoSyncEnabled) {
+      this.setSyncWithVideoEnabled(false);
+    }
+  }
+
+  _handleUserInteractionEnd() {
+    // No-op for now; could be used to re-enable hints, etc.
   }
 
   _broadcastCameraPose() {
