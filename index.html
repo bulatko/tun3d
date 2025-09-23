@@ -7,6 +7,16 @@
     
     <link rel="icon" href="assets/favicon.ico">
     <title>TUN3D</title>
+    <meta property="og:type" content="video.other" />
+    <meta property="og:title" content="TUN3D — Real‑World 3D Detection and Layout Estimation" />
+    <meta property="og:description" content="A novel method for real-world 3D detection and layout estimation from posed and unposed images" />
+    <meta property="og:image" id="ogImage" content="assets/img/scheme.png" />
+    <meta property="og:video" id="ogVideo" content="" />
+    <meta property="og:video:type" content="video/mp4" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="TUN3D — Real‑World 3D Detection and Layout Estimation" />
+    <meta name="twitter:description" content="A novel method for real-world 3D detection and layout estimation from posed and unposed images" />
+    <meta name="twitter:image" id="twImage" content="assets/img/scheme.png" />
     <style>
       html, body { margin: 0; height: 100%; background: #fff; color: #333; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, 'Noto Sans', sans-serif; }
       .wrap { width: 100%; margin: 0 auto; padding: 16px; display: grid; gap: 12px; }
@@ -243,6 +253,17 @@
         setActiveButton(sceneId);
         disposeGrid(grid);
         loadVideo(videoWrap, sceneId);
+      // Update social preview: prefer video if available, else fallback to first frame
+      try {
+        const ogVideo = document.getElementById('ogVideo');
+        const ogImage = document.getElementById('ogImage');
+        const twImage = document.getElementById('twImage');
+        const videoUrl = `data/${sceneId}/video.mp4`;
+        if (ogVideo) ogVideo.setAttribute('content', videoUrl);
+        if (ogImage) ogImage.setAttribute('content', videoUrl);
+        if (twImage) twImage.setAttribute('content', videoUrl);
+      } catch (_) {}
+
         makeGrid(grid, sceneId);
       }
 
@@ -259,6 +280,16 @@
       setActiveButton(sceneId);
       document.getElementById('scene_id').textContent = sceneId;
       loadVideo(videoWrap, sceneId);
+      // Initialize social preview for initial scene
+      try {
+        const ogVideo = document.getElementById('ogVideo');
+        const ogImage = document.getElementById('ogImage');
+        const twImage = document.getElementById('twImage');
+        const videoUrl = `data/${sceneId}/video.mp4`;
+        if (ogVideo) ogVideo.setAttribute('content', videoUrl);
+        if (ogImage) ogImage.setAttribute('content', videoUrl);
+        if (twImage) twImage.setAttribute('content', videoUrl);
+      } catch (_) {}
       makeGrid(grid, sceneId);
     </script>
   </body>
